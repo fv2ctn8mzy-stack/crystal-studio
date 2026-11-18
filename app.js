@@ -33,7 +33,7 @@ romance:{hooks:['Solo voi due','Il tempo insieme conta','Una sorpresa da condivi
 weekend:{hooks:['Weekend, ci sei?','Il piano perfetto per due','Il tuo prossimo weekend','Cambia programma','Una fuga vicino Bari','Questo weekend scegli te','Un weekend da vivere','La pausa che aspettavi'],open:['Il weekend si avvicina: hai già un programma?','Il venerdì porta sempre voglia di cambiare aria.','Non tutti i weekend devono essere uguali.'],body:['Scopri Crystal Luxury Apartment a Capurso, in provincia di Bari.','Una proposta per chi desidera una pausa diversa.','Un soggiorno da organizzare con chi vuoi.'],end:['Salva questo spunto per il prossimo weekend.','Con chi partiresti?','Scrivici per conoscere le date disponibili.']},
 offer:{hooks:['La tua prossima pausa','Una proposta Crystal','Un soggiorno speciale','Regalati una notte diversa','La tua occasione di relax'],open:['Una proposta da segnare in agenda.','Hai voglia di concederti una pausa?','Scopri la promozione attualmente confermata.'],body:['La promozione attiva è di {price} € a notte con {included}, fino al {end}, salvo disponibilità e condizioni.','Fino al {end}: soggiorno a {price} € a notte con {included}, secondo disponibilità.'],end:['Contattaci per verificare le date.','Chiedici disponibilità e condizioni.']}
 };
-const visualLayouts=['hero','signature','magazine','gallery'];
+const visualLayouts=['split','curve','diagonal','arch','cinema','ribbon','corner','offset','editorial','frame'];
 const palettes=[{gold:'#d8b77e',white:'#fff9ef',dark:'#0d0b0a'},{gold:'#e2c18f',white:'#ffffff',dark:'#15100d'},{gold:'#bfa57d',white:'#f8f0e5',dark:'#17120f'}];
 function buildCaption(t,kind){let v=creative[t],op=pick(v.open),body=pick(v.body),end=pick(v.end),cta=state.settings.cta;let intros=['✨','🖤','🥂',''];let sep=pick(['\n\n','\n',' — ']);return `${pick(intros)} ${op}`.trim()+sep+tokens(body)+'\n\n'+end+'\n'+cta+'.'}
 function buildTags(t){let a=[...hashtags[t]],extra=['#CrystalLuxuryApartment','#Capurso','#PugliaDaVivere','#BariProvincia','#VisitPuglia','#SoggiornoRomantico','#EsperienzeInPuglia','#RelaxInPuglia','#PugliaTravel','#SuiteLovers'];let all=[...new Set([...a,...extra])],chosen=[];while(all.length&&chosen.length<rand(3)+6){chosen.push(all.splice(rand(all.length),1)[0])}return chosen.join(' ')}
@@ -72,55 +72,35 @@ async function draw(){
  const photo=allPhotos().find(p=>p.id===current.photo)||basePhotos[0];let im;
  try{im=await loadImg(photo.src)}catch(e){toast('Fotografia non disponibile: verifica la libreria');return}
  if(ticket!==renderTicket)return;
- const layout=visualLayouts.includes(current.layout)?current.layout:'hero';
- const gold='#e6bf78',soft='#fff6e9',dark='#0c0a0c',promo=current.theme==='offer'&&offerValid();
- const headline=(current.headline||'Crystal Luxury Apartment').trim();
- ctx.fillStyle=dark;ctx.fillRect(0,0,w,h);
- const photoCover=(x,y,ww,hh)=>{const scale=Math.max(ww/im.width,hh/im.height),sw=ww/scale,sh=hh/scale;ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,ww,hh)};
- const rect=(x,y,ww,hh,alpha=.8)=>{ctx.fillStyle=`rgba(7,6,9,${alpha})`;ctx.fillRect(x,y,ww,hh)};
- const fade=(x,y,ww,hh,dir='vertical',alpha=.96)=>{const g=dir==='vertical'?ctx.createLinearGradient(0,y,0,y+hh):ctx.createLinearGradient(x,0,x+ww,0);g.addColorStop(0,'rgba(8,6,10,0)');g.addColorStop(1,`rgba(8,6,10,${alpha})`);ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh)};
- const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineWidth=2;ctx.strokeStyle=gold;ctx.stroke()};
- const txt=(t,x,y,size=36,color=soft,align='center',font='Georgia',weight='normal')=>{ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.fillText(t,x,y)};
- const headlineBlock=(x,y,maxWidth,maxLines=3,size=93,align='center')=>{
-  let sz=size,lines=[];while(sz>=49){ctx.font=`bold ${sz}px Georgia`;lines=wrap(ctx,headline,maxWidth,maxLines);if(!lines.some(l=>l.endsWith('…')))break;sz-=5}
-  const step=sz*1.17;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=`bold ${sz}px Georgia`;ctx.fillStyle=soft;ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=12;
-  lines.forEach((l,i)=>ctx.fillText(l,x,y+i*step));ctx.shadowBlur=0;return lines.length*step;
+ const layout=visualLayouts.includes(current.layout)?current.layout:'split';
+ const pal=palettes[current.palette%palettes.length]||palettes[0],gold=pal.gold,white=pal.white;
+ const promo=current.theme==='offer'&&offerValid();
+ const headline=(current.headline||'Una notte speciale').trim().slice(0,72);
+ const cover=(x,y,ww,hh)=>{const sc=Math.max(ww/im.width,hh/im.height),sw=ww/sc,sh=hh/sc;ctx.drawImage(im,Math.max(0,(im.width-sw)/2),Math.max(0,(im.height-sh)/2),sw,sh,x,y,ww,hh)};
+ const rect=(x,y,ww,hh,alpha=.97)=>{ctx.fillStyle=`rgba(8,7,9,${alpha})`;ctx.fillRect(x,y,ww,hh)};
+ const line=(x,y,len=140)=>{ctx.fillStyle=gold;ctx.fillRect(x,y,len,3)};
+ const txt=(t,x,y,size,color=white,align='left',family='Georgia',weight='normal')=>{ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${family}`;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.fillText(t,x,y)};
+ const logo=(x,y,align='left')=>{txt('CRYSTAL',x,y,49,gold,align);txt('L U X U R Y  A P A R T M E N T',x,y+38,17,white,align,'Arial');txt('C A P U R S O',x,y+72,17,gold,align,'Arial')};
+ const title=(x,y,width,align='left',maxSize=106)=>{let sz=maxSize,ls=[];for(;sz>=49;sz-=3){ctx.font=`bold ${sz}px Georgia`;ls=wrap(ctx,headline,width,3);if(ls.every(v=>!v.endsWith('…'))&&ls.length<=3)break}ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=9;ls.forEach((v,i)=>txt(v,x,y+i*sz*1.13,sz,white,align,'Georgia','bold'));ctx.shadowBlur=0;return ls.length*sz*1.13};
+ const price=(x,y,align='left')=>{if(promo)txt(String(state.settings.price).replace(/[^0-9,.]/g,'')+' € / NOTTE',x,y,47,gold,align,'Georgia','bold')};
+ const cta=(x,y,width=390)=>{ctx.fillStyle='#100d0d';ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(x,y,width,85,38);ctx.fill();ctx.stroke();txt('PRENOTA ORA',x+width/2,y+55,30,white,'center','Arial','bold')};
+ const footer=(x,y)=>{line(x,y,95);txt('CRYSTAL  ·  CAPURSO',x,y+46,23,gold,'left','Arial')};
+ const clipPath=(points)=>{ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip()};
+ const gradient=(x,y,ww,hh,from=0,to=.86)=>{const g=ctx.createLinearGradient(x,y,x,y+hh);g.addColorStop(0,`rgba(5,4,6,${from})`);g.addColorStop(1,`rgba(5,4,6,${to})`);ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh)};
+ rect(0,0,w,h,1);
+ const designs={
+ split:()=>{cover(385,0,695,h);rect(0,0,450,h);line(449,0,0);ctx.fillStyle=gold;ctx.fillRect(448,0,3,h);logo(65,130);title(65,h*.42,385,'left',91);price(65,h*.67);cta(60,h-240,390);footer(65,h-115)},
+ curve:()=>{cover(0,0,w,h);ctx.fillStyle='#090809';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(570,0);ctx.bezierCurveTo(390,h*.35,530,h*.60,330,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.stroke();logo(65,145);title(65,h*.42,490,'left',98);price(65,h*.69);cta(65,h-235,385)},
+ diagonal:()=>{cover(0,0,w,h);ctx.save();clipPath([[0,0],[610,0],[340,h],[0,h]]);rect(0,0,w,h);ctx.restore();ctx.strokeStyle=gold;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(610,0);ctx.lineTo(340,h);ctx.stroke();logo(65,145);title(65,h*.44,525,'left',98);price(65,h*.70);cta(65,h-235,390)},
+ arch:()=>{cover(0,0,w,h);rect(0,0,490,h,.95);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(490,0);ctx.bezierCurveTo(670,h*.36,260,h*.64,490,h);ctx.stroke();logo(60,140);title(60,h*.43,465,'left',95);price(60,h*.7);cta(60,h-235,390)},
+ cinema:()=>{cover(0,0,w,h);gradient(0,0,w,440,.8,0);gradient(0,h*.46,w,h*.54,0,.98);logo(70,140);title(70,h*.72,920,'left',116);price(70,h*.85);cta(70,h-190,440)},
+ ribbon:()=>{cover(0,0,w,h);rect(0,0,390,h,.94);ctx.fillStyle='rgba(9,7,9,.88)';ctx.fillRect(390,h*.35,690,470);line(390,h*.35,690);logo(55,135);title(425,h*.47,610,'left',96);price(425,h*.63);cta(420,h-220,455);footer(55,h-120)},
+ corner:()=>{cover(0,0,w,h);ctx.save();clipPath([[0,0],[770,0],[420,720],[0,720]]);rect(0,0,w,h);ctx.restore();ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(770,0);ctx.lineTo(420,720);ctx.stroke();logo(65,130);gradient(0,h*.54,w,h*.46,0,.96);title(70,h*.73,900,'left',111);price(70,h*.86);cta(70,h-170,420)},
+ offset:()=>{cover(0,0,w,h);rect(0,0,w,270,.94);rect(0,h*.66,w,h*.34,.92);logo(75,130);line(75,h*.68,170);title(75,h*.76,900,'left',111);price(75,h*.89);cta(75,h-155,430)},
+ editorial:()=>{cover(390,0,690,h);rect(0,0,390,h);logo(45,125);ctx.save();ctx.translate(315,h*.63);ctx.rotate(-Math.PI/2);txt('CRYSTAL LUXURY APARTMENT',0,0,27,gold,'left','Georgia');ctx.restore();gradient(390,h*.46,690,h*.54,0,.89);title(430,h*.69,610,'left',90);price(430,h*.85);cta(425,h-165,520)},
+ frame:()=>{cover(0,0,w,h);gradient(0,0,w,430,.75,0);gradient(0,h*.42,w,h*.58,0,.94);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.strokeRect(45,45,w-90,h-90);logo(w/2,145,'center');title(w/2,h*.73,880,'center',104);price(w/2,h*.86,'center');cta(310,h-185,460)}
  };
- const brand=(x,y,align='center')=>{txt('◇',x,y,49,gold,align);txt('C R Y S T A L',x,y+56,43,soft,align);txt('L U X U R Y   A P A R T M E N T',x,y+93,19,gold,align,'Arial');txt('C A P U R S O',x,y+127,18,soft,align,'Arial')};
- const cta=(y,x=w/2,width=850)=>{const hh=91,xx=x-width/2;ctx.fillStyle='rgba(10,8,12,.92)';ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(xx,y,width,hh,45);else ctx.rect(xx,y,width,hh);ctx.fill();ctx.stroke();let label=(state.settings.cta||'SCRIVICI PER PRENOTARE').toUpperCase().slice(0,45);let sz=29;while(sz>18){ctx.font=`bold ${sz}px Arial`;if(ctx.measureText(label).width<width-75)break;sz-=2}txt(label,x,y+58,sz,soft,'center','Arial','bold')};
- const price=(x,y,size=155)=>{txt('OFFERTA CONFERMATA',x,y-100,24,gold,'center','Arial','bold');txt(`${state.settings.price} €`,x,y+40,size,gold);txt('A NOTTE',x,y+96,29,soft,'center','Arial');let inc=(state.settings.included||'').toUpperCase();ctx.font='24px Arial';wrap(ctx,inc,760,2).forEach((t,i)=>txt(t,x,y+145+i*32,24,soft,'center','Arial'))};
- const subtitle=(x,y)=>txt('RELAX  ✧  PRIVACY  ✧  MOMENTI SPECIALI',x,y,26,gold);
- const flourish=(x,y)=>{line(x-140,y,x-25,y);txt('✦',x,y+12,34,gold);line(x+25,y,x+140,y)};
- // Every layout uses the original uploaded photo as the only photographic layer.
- if(layout==='hero'){
-  photoCover(0,0,w,h);fade(0,0,w,h*.45,'vertical',.42);fade(0,h*.38,w,h*.62,'vertical',.97);
-  brand(w/2,115);flourish(w/2,h*.48);
-  headlineBlock(w/2,h*.57,w-145,3,94);
-  if(promo)price(w/2,h*.72,139);else subtitle(w/2,h*.79);
-  cta(h-160);
- }else if(layout==='signature'){
-  photoCover(0,0,w,h);const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(5,5,8,.98)');g.addColorStop(.48,'rgba(5,5,8,.86)');g.addColorStop(.83,'rgba(5,5,8,.20)');g.addColorStop(1,'rgba(5,5,8,0)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-  brand(85,125,'left');line(85,h*.35,600,h*.35);
-  headlineBlock(90,h*.45,650,4,90,'left');
-  if(promo){txt(`${state.settings.price} €`,100,h*.69,146,gold,'left');txt('A NOTTE',100,h*.73,31,soft,'left','Arial')}else{txt('IL TUO MOMENTO SPECIALE',100,h*.72,29,gold,'left','Arial')}
-  cta(h-165);
- }else if(layout==='magazine'){
-  photoCover(0,0,w,h);fade(0,0,w,h*.38,'vertical',.60);rect(0,h*.59,w,h*.41,.90);
-  brand(w/2,110);line(90,h*.625,w-90,h*.625);
-  headlineBlock(w/2,h*.70,w-155,3,91);
-  if(promo){txt(`${state.settings.price} € / NOTTE`,w/2,h*.85,73,gold)}else subtitle(w/2,h*.85);
-  cta(h-155);
- }else{
-  // Gallery: image fills most of the composition, with a compact editorial footer.
-  photoCover(35,35,w-70,h*.71);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.strokeRect(35,35,w-70,h*.71);
-  fade(35,h*.49,w-70,h*.25,'vertical',.86);brand(w/2,115);
-  rect(0,h*.73,w,h*.27,.98);flourish(w/2,h*.765);
-  headlineBlock(w/2,h*.83,w-155,2,79);
-  if(promo)txt(`${state.settings.price} € A NOTTE`,w/2,h*.90,58,gold);
-  cta(h-132);
- }
- // Final safe-area border: subtle, never covering the subject.
- ctx.strokeStyle='rgba(230,191,120,.56)';ctx.lineWidth=2;ctx.strokeRect(24,24,w-48,h-48);
+ designs[layout]();
  lastBlob=null;
 }
 function canvasBlob(){return new Promise(resolve=>$('canvas').toBlob(resolve,'image/png'))}async function saveImage(share=false){sync();await draw();let blob=await canvasBlob();if(!blob){toast('Esportazione non riuscita');return}let name=`crystal_${current.kind}_${new Date().toISOString().slice(0,10)}.png`;if(share&&navigator.share&&navigator.canShare){let file=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Crystal Luxury Apartment',text:current.caption+'\n'+current.hashtags});return}catch(e){if(e.name==='AbortError')return}}}let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);toast(share?'Immagine scaricata: condividila dal tuo iPhone':'PNG pronto per il download')}
