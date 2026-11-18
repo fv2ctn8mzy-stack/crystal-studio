@@ -33,7 +33,7 @@ romance:{hooks:['Solo voi due','Il tempo insieme conta','Una sorpresa da condivi
 weekend:{hooks:['Weekend, ci sei?','Il piano perfetto per due','Il tuo prossimo weekend','Cambia programma','Una fuga vicino Bari','Questo weekend scegli te','Un weekend da vivere','La pausa che aspettavi'],open:['Il weekend si avvicina: hai già un programma?','Il venerdì porta sempre voglia di cambiare aria.','Non tutti i weekend devono essere uguali.'],body:['Scopri Crystal Luxury Apartment a Capurso, in provincia di Bari.','Una proposta per chi desidera una pausa diversa.','Un soggiorno da organizzare con chi vuoi.'],end:['Salva questo spunto per il prossimo weekend.','Con chi partiresti?','Scrivici per conoscere le date disponibili.']},
 offer:{hooks:['La tua prossima pausa','Una proposta Crystal','Un soggiorno speciale','Regalati una notte diversa','La tua occasione di relax'],open:['Una proposta da segnare in agenda.','Hai voglia di concederti una pausa?','Scopri la promozione attualmente confermata.'],body:['La promozione attiva è di {price} € a notte con {included}, fino al {end}, salvo disponibilità e condizioni.','Fino al {end}: soggiorno a {price} € a notte con {included}, secondo disponibilità.'],end:['Contattaci per verificare le date.','Chiedici disponibilità e condizioni.']}
 };
-const visualLayouts=['cinematic','editorial','split','frame','minimal','corner','band','poster'];
+const visualLayouts=['hero','signature','magazine','gallery'];
 const palettes=[{gold:'#d8b77e',white:'#fff9ef',dark:'#0d0b0a'},{gold:'#e2c18f',white:'#ffffff',dark:'#15100d'},{gold:'#bfa57d',white:'#f8f0e5',dark:'#17120f'}];
 function buildCaption(t,kind){let v=creative[t],op=pick(v.open),body=pick(v.body),end=pick(v.end),cta=state.settings.cta;let intros=['✨','🖤','🥂',''];let sep=pick(['\n\n','\n',' — ']);return `${pick(intros)} ${op}`.trim()+sep+tokens(body)+'\n\n'+end+'\n'+cta+'.'}
 function buildTags(t){let a=[...hashtags[t]],extra=['#CrystalLuxuryApartment','#Capurso','#PugliaDaVivere','#BariProvincia','#VisitPuglia','#SoggiornoRomantico','#EsperienzeInPuglia','#RelaxInPuglia','#PugliaTravel','#SuiteLovers'];let all=[...new Set([...a,...extra])],chosen=[];while(all.length&&chosen.length<rand(3)+6){chosen.push(all.splice(rand(all.length),1)[0])}return chosen.join(' ')}
@@ -72,59 +72,55 @@ async function draw(){
  const photo=allPhotos().find(p=>p.id===current.photo)||basePhotos[0];let im;
  try{im=await loadImg(photo.src)}catch(e){toast('Fotografia non disponibile: verifica la libreria');return}
  if(ticket!==renderTicket)return;
- const layout=current.layout||'cinematic',pal=palettes[current.palette||0],gold=pal.gold,white=pal.white;
- const promo=current.theme==='offer'&&offerValid();
+ const layout=visualLayouts.includes(current.layout)?current.layout:'hero';
+ const gold='#e6bf78',soft='#fff6e9',dark='#0c0a0c',promo=current.theme==='offer'&&offerValid();
  const headline=(current.headline||'Crystal Luxury Apartment').trim();
- const text=(t,x,y,size=34,color=white,align='center',font='Georgia',weight='normal')=>{ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.fillText(t,x,y)};
- const rule=(x1,y1,x2,y2,width=2)=>{ctx.strokeStyle=gold;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()};
- const panel=(x,y,ww,hh,opacity=.78)=>{ctx.fillStyle=`rgba(9,8,10,${opacity})`;ctx.fillRect(x,y,ww,hh)};
- const fitTitle=(x,y,maxWidth,maxLines=3,base=77,align='center')=>{
-   let sz=base,lines=[];do{ctx.font=`${sz}px Georgia`;lines=wrap(ctx,headline,maxWidth,maxLines);if(lines.some(l=>l.endsWith('…')))sz-=4;else break}while(sz>35);
-   const lh=sz*1.18;ctx.textAlign=align;ctx.fillStyle=white;ctx.shadowColor='#000';ctx.shadowBlur=14;
-   lines.forEach((line,i)=>ctx.fillText(line,x,y+i*lh));ctx.shadowBlur=0;return lines.length*lh;
+ ctx.fillStyle=dark;ctx.fillRect(0,0,w,h);
+ const photoCover=(x,y,ww,hh)=>{const scale=Math.max(ww/im.width,hh/im.height),sw=ww/scale,sh=hh/scale;ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,ww,hh)};
+ const rect=(x,y,ww,hh,alpha=.8)=>{ctx.fillStyle=`rgba(7,6,9,${alpha})`;ctx.fillRect(x,y,ww,hh)};
+ const fade=(x,y,ww,hh,dir='vertical',alpha=.96)=>{const g=dir==='vertical'?ctx.createLinearGradient(0,y,0,y+hh):ctx.createLinearGradient(x,0,x+ww,0);g.addColorStop(0,'rgba(8,6,10,0)');g.addColorStop(1,`rgba(8,6,10,${alpha})`);ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh)};
+ const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineWidth=2;ctx.strokeStyle=gold;ctx.stroke()};
+ const txt=(t,x,y,size=36,color=soft,align='center',font='Georgia',weight='normal')=>{ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.fillText(t,x,y)};
+ const headlineBlock=(x,y,maxWidth,maxLines=3,size=93,align='center')=>{
+  let sz=size,lines=[];while(sz>=49){ctx.font=`bold ${sz}px Georgia`;lines=wrap(ctx,headline,maxWidth,maxLines);if(!lines.some(l=>l.endsWith('…')))break;sz-=5}
+  const step=sz*1.17;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.font=`bold ${sz}px Georgia`;ctx.fillStyle=soft;ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=12;
+  lines.forEach((l,i)=>ctx.fillText(l,x,y+i*step));ctx.shadowBlur=0;return lines.length*step;
  };
- const brand=(x,y,align='center',scale=1)=>{text('◇',x,y,51*scale,gold,align);text('C R Y S T A L',x,y+55*scale,39*scale,white,align);text('L U X U R Y  A P A R T M E N T',x,y+87*scale,16*scale,gold,align,'Arial')};
- const cta=(x,y,width=740)=>{const hh=84;ctx.fillStyle='rgba(8,8,10,.79)';ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-width/2,y,width,hh,42);else ctx.rect(x-width/2,y,width,hh);ctx.fill();ctx.stroke();text((state.settings.cta||'SCRIVICI PER PRENOTARE').toUpperCase().slice(0,43),x,y+53,23,white)};
- const features=(x,y,width)=>{rule(x-width/2,y-37,x+width/2,y-37);text('✧  RELAX     ◇  PRIVACY     ♡  MOMENTI SPECIALI',x,y,22,gold)};
- const price=(x,y,large=125)=>{text('A PARTIRE DA',x,y-80,23,gold);text(String(state.settings.price)+' €',x,y+36,large,gold);text('A NOTTE',x,y+78,25,white);text((state.settings.included||'').toUpperCase().slice(0,42),x,y+128,20,white)};
- const vignette=(top=.24,bottom=.86)=>{let g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,`rgba(4,4,7,${top})`);g.addColorStop(.38,'rgba(4,4,7,.03)');g.addColorStop(1,`rgba(4,4,7,${bottom})`);ctx.fillStyle=g;ctx.fillRect(0,0,w,h)};
- const crop=(x,y,ww,hh)=>{let scale=Math.max(ww/im.width,hh/im.height),sw=ww/scale,sh=hh/scale;ctx.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,ww,hh)};
- ctx.fillStyle='#0d0a0c';ctx.fillRect(0,0,w,h);
- if(layout==='split'){crop(w*.38,0,w*.62,h);panel(0,0,w*.43,h,.95)}
- else if(layout==='editorial'){crop(0,0,w,h*.75);panel(0,h*.72,w,h*.28,.95)}
- else if(layout==='frame'){crop(40,40,w-80,h-80);vignette(.4,.9)}
- else if(layout==='band'){crop(0,0,w,h);vignette(.45,.75);panel(0,h*.37,w,h*.29,.87)}
- else if(layout==='poster'){crop(0,0,w,h);let g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(5,5,7,.95)');g.addColorStop(.64,'rgba(5,5,7,.65)');g.addColorStop(1,'rgba(5,5,7,.04)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h)}
- else if(layout==='corner'){crop(0,0,w,h);panel(0,0,w,h*.38,.84);vignette(.2,.8)}
- else if(layout==='minimal'){crop(0,0,w,h);panel(0,0,w,h,.53)}
- else{crop(0,0,w,h);vignette(.65,.94)}
- // Original guest-property photographs remain the only image layer; all effects are 2D typography/overlays.
- if(layout==='split'){
-  brand(205,h*.16,'center',.85);rule(58,h*.29,353,h*.29);fitTitle(54,h*.40,335,5,49,'left');
-  if(promo)price(215,h*.67,90);else text('LA TUA SUITE A CAPURSO',215,h*.72,21,gold);
-  cta(540,h-160,820);
- }else if(layout==='editorial'){
-  brand(w/2,125);fitTitle(w/2,h*.80,w-150,3,73);if(promo)text(`${state.settings.price} € / NOTTE`,w/2,h*.90,54,gold);cta(w/2,h-105,770);
- }else if(layout==='frame'){
-  ctx.strokeStyle=gold;ctx.lineWidth=4;ctx.strokeRect(45,45,w-90,h-90);brand(w/2,165);
-  panel(72,h*.60,w-144,h*.28,.76);fitTitle(w/2,h*.69,w-190,3,76);
-  if(promo)text(`${state.settings.price} € A NOTTE`,w/2,h*.82,51,gold);cta(w/2,h-150);
- }else if(layout==='minimal'){
-  brand(w/2,h*.25);rule(320,h*.38,760,h*.38);fitTitle(w/2,h*.49,w-160,3,84);
-  if(promo)text(`${state.settings.price} € A NOTTE`,w/2,h*.73,60,gold);cta(w/2,h*.84);
- }else if(layout==='corner'){
-  brand(85,125,'left',.85);fitTitle(85,h*.23,w-165,3,76,'left');
-  if(promo)text(`${state.settings.price} € / NOTTE`,85,h*.34,50,gold,'left');features(w/2,h*.83,850);cta(w/2,h-160);
- }else if(layout==='band'){
-  brand(w/2,140);rule(80,h*.40,w-80,h*.40);fitTitle(w/2,h*.49,w-150,3,79);
-  if(promo)text(`${state.settings.price} € A NOTTE`,w/2,h*.62,54,gold);rule(80,h*.65,w-80,h*.65);cta(w/2,h-155);
- }else if(layout==='poster'){
-  brand(80,150,'left',.9);rule(85,h*.30,530,h*.30);fitTitle(90,h*.40,620,4,81,'left');
-  if(promo){text('OFFERTA CONFERMATA',95,h*.65,22,gold,'left');text(`${state.settings.price} €`,95,h*.74,125,gold,'left')}
-  else text('CRYSTAL · CAPURSO',90,h*.72,27,gold,'left');cta(w/2,h-150);
+ const brand=(x,y,align='center')=>{txt('◇',x,y,49,gold,align);txt('C R Y S T A L',x,y+56,43,soft,align);txt('L U X U R Y   A P A R T M E N T',x,y+93,19,gold,align,'Arial');txt('C A P U R S O',x,y+127,18,soft,align,'Arial')};
+ const cta=(y,x=w/2,width=850)=>{const hh=91,xx=x-width/2;ctx.fillStyle='rgba(10,8,12,.92)';ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(xx,y,width,hh,45);else ctx.rect(xx,y,width,hh);ctx.fill();ctx.stroke();let label=(state.settings.cta||'SCRIVICI PER PRENOTARE').toUpperCase().slice(0,45);let sz=29;while(sz>18){ctx.font=`bold ${sz}px Arial`;if(ctx.measureText(label).width<width-75)break;sz-=2}txt(label,x,y+58,sz,soft,'center','Arial','bold')};
+ const price=(x,y,size=155)=>{txt('OFFERTA CONFERMATA',x,y-100,24,gold,'center','Arial','bold');txt(`${state.settings.price} €`,x,y+40,size,gold);txt('A NOTTE',x,y+96,29,soft,'center','Arial');let inc=(state.settings.included||'').toUpperCase();ctx.font='24px Arial';wrap(ctx,inc,760,2).forEach((t,i)=>txt(t,x,y+145+i*32,24,soft,'center','Arial'))};
+ const subtitle=(x,y)=>txt('RELAX  ✧  PRIVACY  ✧  MOMENTI SPECIALI',x,y,26,gold);
+ const flourish=(x,y)=>{line(x-140,y,x-25,y);txt('✦',x,y+12,34,gold);line(x+25,y,x+140,y)};
+ // Every layout uses the original uploaded photo as the only photographic layer.
+ if(layout==='hero'){
+  photoCover(0,0,w,h);fade(0,0,w,h*.45,'vertical',.42);fade(0,h*.38,w,h*.62,'vertical',.97);
+  brand(w/2,115);flourish(w/2,h*.48);
+  headlineBlock(w/2,h*.57,w-145,3,94);
+  if(promo)price(w/2,h*.72,139);else subtitle(w/2,h*.79);
+  cta(h-160);
+ }else if(layout==='signature'){
+  photoCover(0,0,w,h);const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,'rgba(5,5,8,.98)');g.addColorStop(.48,'rgba(5,5,8,.86)');g.addColorStop(.83,'rgba(5,5,8,.20)');g.addColorStop(1,'rgba(5,5,8,0)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  brand(85,125,'left');line(85,h*.35,600,h*.35);
+  headlineBlock(90,h*.45,650,4,90,'left');
+  if(promo){txt(`${state.settings.price} €`,100,h*.69,146,gold,'left');txt('A NOTTE',100,h*.73,31,soft,'left','Arial')}else{txt('IL TUO MOMENTO SPECIALE',100,h*.72,29,gold,'left','Arial')}
+  cta(h-165);
+ }else if(layout==='magazine'){
+  photoCover(0,0,w,h);fade(0,0,w,h*.38,'vertical',.60);rect(0,h*.59,w,h*.41,.90);
+  brand(w/2,110);line(90,h*.625,w-90,h*.625);
+  headlineBlock(w/2,h*.70,w-155,3,91);
+  if(promo){txt(`${state.settings.price} € / NOTTE`,w/2,h*.85,73,gold)}else subtitle(w/2,h*.85);
+  cta(h-155);
  }else{
-  brand(w/2,145);fitTitle(w/2,h*.71,w-130,3,84);if(promo)text(`${state.settings.price} € / NOTTE`,w/2,h*.82,59,gold);features(w/2,h*.87,850);cta(w/2,h-135);
+  // Gallery: image fills most of the composition, with a compact editorial footer.
+  photoCover(35,35,w-70,h*.71);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.strokeRect(35,35,w-70,h*.71);
+  fade(35,h*.49,w-70,h*.25,'vertical',.86);brand(w/2,115);
+  rect(0,h*.73,w,h*.27,.98);flourish(w/2,h*.765);
+  headlineBlock(w/2,h*.83,w-155,2,79);
+  if(promo)txt(`${state.settings.price} € A NOTTE`,w/2,h*.90,58,gold);
+  cta(h-132);
  }
+ // Final safe-area border: subtle, never covering the subject.
+ ctx.strokeStyle='rgba(230,191,120,.56)';ctx.lineWidth=2;ctx.strokeRect(24,24,w-48,h-48);
  lastBlob=null;
 }
 function canvasBlob(){return new Promise(resolve=>$('canvas').toBlob(resolve,'image/png'))}async function saveImage(share=false){sync();await draw();let blob=await canvasBlob();if(!blob){toast('Esportazione non riuscita');return}let name=`crystal_${current.kind}_${new Date().toISOString().slice(0,10)}.png`;if(share&&navigator.share&&navigator.canShare){let file=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Crystal Luxury Apartment',text:current.caption+'\n'+current.hashtags});return}catch(e){if(e.name==='AbortError')return}}}let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);toast(share?'Immagine scaricata: condividila dal tuo iPhone':'PNG pronto per il download')}
