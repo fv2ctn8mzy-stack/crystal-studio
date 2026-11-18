@@ -9,7 +9,21 @@ const weekThemes=['relax','suite','romance','suite','weekend','offer','relax'];c
 const templates={relax:[['Il tuo momento di relax','Ogni tanto serve soltanto fermarsi. ✨ Concediti un momento tutto tuo da Crystal Luxury Apartment, a Capurso. {cta}.'],['Stacca la spina. Riscopri il relax.','La settimana corre veloce. Il relax può aspettarti da Crystal Luxury Apartment. 🛁 {cta}.'],['Una pausa che vale la pena vivere','Un’atmosfera speciale, il tempo per rallentare e un soggiorno da ricordare. ✨ {cta}.']],suite:[['Scopri Crystal Luxury Apartment','Un soggiorno pensato per chi cerca privacy, comfort e un’esperienza diversa a Capurso. ✨ {cta}.'],['Il tuo rifugio a Capurso','Scopri gli ambienti di Crystal Luxury Apartment attraverso le nostre foto reali. 🖤 {cta}.'],['I dettagli fanno la differenza','Ogni dettaglio contribuisce a rendere speciale una pausa dalla routine. Scopri Crystal. {cta}.']],romance:[['Un momento solo per voi','Le occasioni più belle si vivono insieme. 🥂 Sorprendi una persona speciale con una pausa a Crystal Luxury Apartment. {cta}.'],['Sorprendi chi ami','Un’esperienza da condividere, lontano dalla frenesia quotidiana. ✨ Crystal Luxury Apartment · Capurso. {cta}.'],['Il tempo insieme è prezioso','Regalatevi il tempo di stare insieme. Scoprite Crystal Luxury Apartment. ❤️ {cta}.']],weekend:[['Il weekend merita qualcosa di speciale','Il fine settimana è l’occasione perfetta per cambiare ritmo. 🥂 Crystal Luxury Apartment · Capurso. {cta}.'],['Il tuo prossimo weekend comincia qui','Un’idea per sorprendere chi ami e ritrovare un po’ di tranquillità. ✨ {cta}.'],['Questo weekend scegli il relax','Lascia fuori la routine e concediti un’esperienza diversa. Crystal Luxury Apartment · Capurso. {cta}.']],offer:[['Una notte speciale da {price} €','✨ Promozione Crystal: {price} € a notte, {included}. Offerta valida fino al {end}. Disponibilità e condizioni da confermare. {cta}.'],['La tua pausa da {price} €','🥂 Crystal Luxury Apartment · {price} € a notte con {included}. Fino al {end}, salvo disponibilità. {cta}.']]};
 const hashtags={relax:['#CrystalLuxuryApartment','#Capurso','#RelaxPuglia','#WeekendInPuglia','#BariProvincia','#MomentiDiRelax','#PugliaDaScoprire'],suite:['#CrystalLuxuryApartment','#Capurso','#SuitePuglia','#SoggiornoInPuglia','#Bari','#HospitalityPuglia','#Puglia'],romance:['#CrystalLuxuryApartment','#FugaRomantica','#Capurso','#WeekendDiCoppia','#PugliaRomantica','#BariProvincia','#IdeeRegalo'],weekend:['#CrystalLuxuryApartment','#WeekendPuglia','#Capurso','#BariProvincia','#WeekendRomantico','#RelaxDiCoppia','#Puglia'],offer:['#CrystalLuxuryApartment','#PromoSoggiorno','#Capurso','#BariProvincia','#WeekendPuglia','#RelaxPuglia']};
 function offerValid(){let s=state.settings;let d=new Date(),today=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');return !!(s.active&&s.price>0&&s.end&&s.end>=today)}function themeToday(){let t=weekThemes[(new Date().getDay()+6)%7];return t==='offer'&&!offerValid()?'romance':t}
-function choosePhoto(){let photos=allPhotos();if(!photos.length)return basePhotos[0];let pool=photos.filter(p=>p.id!==lastPhotoId);if(!pool.length)pool=photos;let selected=pool[Math.floor(Math.random()*pool.length)];lastPhotoId=selected.id;return selected}
+let photoBag=[];
+function choosePhoto(){
+  const photos=allPhotos();if(!photos.length)return basePhotos[0];
+  const ids=new Set(photos.map(p=>p.id));
+  photoBag=photoBag.filter(id=>ids.has(id));
+  if(!photoBag.length){
+    photoBag=photos.map(p=>p.id);
+    for(let i=photoBag.length-1;i>0;i--){const j=rand(i+1);[photoBag[i],photoBag[j]]=[photoBag[j],photoBag[i]]}
+    if(photoBag.length>1&&photoBag[photoBag.length-1]===lastPhotoId){[photoBag[0],photoBag[photoBag.length-1]]=[photoBag[photoBag.length-1],photoBag[0]]}
+  }
+  const id=photoBag.pop();lastPhotoId=id;
+  return photos.find(p=>p.id===id)||photos[0];
+}
+let previousHeadline='',previousCaption='';
+function chooseHeadline(t){const pool=creative[t].hooks.filter(x=>tokens(x)!==previousHeadline);return tokens(pick(pool.length?pool:creative[t].hooks))}
 function rand(n){if(n<=1)return 0;let v=new Uint32Array(1);if(globalThis.crypto&&crypto.getRandomValues){crypto.getRandomValues(v);return v[0]%n}return Math.floor(Math.random()*n)}
 function pick(a){return a[rand(a.length)]}
 const creative={
@@ -39,7 +53,7 @@ async function refreshGithubPhotos(notify=false){
     githubPhotos=items.filter(x=>x.type==='file'&&photoExtensions.test(x.name)&&!known.has(x.name.toLowerCase()))
       .map(x=>({id:'gh-'+x.name,name:x.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').slice(0,70),src:'assets/'+encodeURIComponent(x.name)}));
     if(status)status.textContent=`${githubPhotos.length} nuove fotografie trovate su GitHub · ${basePhotos.length} iniziali`;
-    fillPhotos();renderPhotos();
+    photoBag=[];fillPhotos();renderPhotos();
     if(notify)toast(`${githubPhotos.length} nuove foto disponibili`);
   }catch(e){
     if(status)status.textContent='Aggiornamento GitHub non disponibile. Le foto iniziali e quelle locali restano utilizzabili.';
@@ -48,7 +62,7 @@ async function refreshGithubPhotos(notify=false){
 }
 
 function tokens(t){const s=state.settings;return t.replaceAll('{price}',s.price).replaceAll('{included}',s.included).replaceAll('{end}',s.end?new Date(s.end+'T12:00:00').toLocaleDateString('it-IT'):'').replaceAll('{cta}',s.cta)}
-function makeContent(){let t=$('theme').value==='auto'?themeToday():$('theme').value;if(t==='offer'&&!offerValid()){t='relax';toast('Promozione non confermata: uso il tema Relax.')}let kind=$('kind').value;let previous=current.photo;let photo=choosePhoto();let headline=t==='offer'&&rand(2)===0?`Una notte da ${state.settings.price} €`:pick(creative[t].hooks);let layout=pick(visualLayouts.filter(x=>x!==current.layout));let palette=rand(palettes.length);current={kind,theme:t,photo:photo.id,layout,palette,headline:tokens(headline),caption:buildCaption(t,kind),hashtags:buildTags(t),script:buildScript(tokens(headline))};$('photoSelect').value=current.photo;$('headline').value=current.headline;$('caption').value=current.caption;$('hashtags').value=current.hashtags;$('reelScript').value=current.script;draw()}
+function makeContent(){let t=$('theme').value==='auto'?themeToday():$('theme').value;if(t==='offer'&&!offerValid()){t='relax';toast('Promozione non confermata: uso il tema Relax.')}let kind=$('kind').value;let previous=current.photo;let photo=choosePhoto();let headline=chooseHeadline(t);let layout=pick(visualLayouts.filter(x=>x!==current.layout));let palette=rand(palettes.length);let caption=buildCaption(t,kind);for(let attempt=0;attempt<5&&caption===previousCaption;attempt++)caption=buildCaption(t,kind);previousCaption=caption;previousHeadline=headline;current={kind,theme:t,photo:photo.id,layout,palette,headline,caption,hashtags:buildTags(t),script:buildScript(headline)};$('photoSelect').value=current.photo;$('headline').value=current.headline;$('caption').value=current.caption;$('hashtags').value=current.hashtags;$('reelScript').value=current.script;draw()}
 function sync(){current.headline=$('headline').value;current.caption=$('caption').value;current.hashtags=$('hashtags').value;current.script=$('reelScript').value;current.photo=$('photoSelect').value;current.kind=$('kind').value}
 function loadImg(src){return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src})}
 function wrap(ctx,text,maxWidth,maxLines){let words=text.split(/\s+/),lines=[],line='';for(let w of words){let next=line?line+' '+w:w;if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=w}else line=next}if(line)lines.push(line);if(lines.length>maxLines){lines=lines.slice(0,maxLines);while(ctx.measureText(lines[maxLines-1]+'…').width>maxWidth)lines[maxLines-1]=lines[maxLines-1].slice(0,-1);lines[maxLines-1]+='…'}return lines}
