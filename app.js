@@ -33,9 +33,18 @@ romance:{hooks:['Solo voi due','Il tempo insieme conta','Una sorpresa da condivi
 weekend:{hooks:['Weekend, ci sei?','Il piano perfetto per due','Il tuo prossimo weekend','Cambia programma','Una fuga vicino Bari','Questo weekend scegli te','Un weekend da vivere','La pausa che aspettavi'],open:['Il weekend si avvicina: hai già un programma?','Il venerdì porta sempre voglia di cambiare aria.','Non tutti i weekend devono essere uguali.'],body:['Scopri Crystal Luxury Apartment a Capurso, in provincia di Bari.','Una proposta per chi desidera una pausa diversa.','Un soggiorno da organizzare con chi vuoi.'],end:['Salva questo spunto per il prossimo weekend.','Con chi partiresti?','Scrivici per conoscere le date disponibili.']},
 offer:{hooks:['La tua prossima pausa','Una proposta Crystal','Un soggiorno speciale','Regalati una notte diversa','La tua occasione di relax'],open:['Una proposta da segnare in agenda.','Hai voglia di concederti una pausa?','Scopri la promozione attualmente confermata.'],body:['La promozione attiva è di {price} € a notte con {included}, fino al {end}, salvo disponibilità e condizioni.','Fino al {end}: soggiorno a {price} € a notte con {included}, secondo disponibilità.'],end:['Contattaci per verificare le date.','Chiedici disponibilità e condizioni.']}
 };
-const visualLayouts=['editorial','cinema','corner','minimal','center','spotlight'];
+// Titoli pubblicitari aggiuntivi: rotazione casuale senza ripetizioni consecutive.
+const extraHooks={
+ relax:['Il tuo lusso quotidiano','Un respiro di bellezza','Dimentica il resto','La pausa che ti meriti','La bellezza di fermarsi','La notte cambia ritmo','Regalati un momento','Lascia fuori il mondo','Qui comincia il relax','Il piacere di scegliere te'],
+ suite:['Non chiamarla solo notte','Il dettaglio che sorprende','Un mondo tutto da scoprire','Benvenuti da Crystal','Un posto fuori dall’ordinario','Vivi qualcosa di diverso','La suite dei tuoi desideri','Scopri il tuo prossimo ricordo','Una notte da raccontare','Il fascino di Crystal'],
+ romance:['Sorprendila davvero','La vostra notte speciale','Due cuori, una fuga','Perdersi insieme','Solo noi, per una notte','L’amore ha bisogno di tempo','Il regalo siete voi','Una sorpresa indimenticabile','Il vostro momento è ora','Un invito a innamorarsi'],
+ weekend:['Questo weekend si cambia','Scappa dalla routine','Hai già un piano migliore?','La fuga che mancava','Una notte tutta da vivere','Il weekend comincia qui','Il tuo piano per due','Il bello arriva venerdì','Prenota un ricordo','Il weekend che desideri'],
+ offer:['Il relax ti aspetta','Una notte da scegliere','Un invito speciale','La tua occasione Crystal','Il momento giusto è ora','Sorprendi chi ami','La tua fuga esclusiva']
+};
+for(const [key,hooks] of Object.entries(extraHooks))creative[key].hooks.push(...hooks);
+const visualLayouts=['left-classic','right-classic','left-modern','right-modern','left-romance','right-signature'];
 const palettes=[{gold:'#d8b77e',white:'#fff9ef',dark:'#0d0b0a'},{gold:'#e2c18f',white:'#ffffff',dark:'#15100d'},{gold:'#bfa57d',white:'#f8f0e5',dark:'#17120f'}];
-function buildCaption(t,kind){let v=creative[t],op=pick(v.open),body=pick(v.body),end=pick(v.end),cta=state.settings.cta;let intros=['✨','🖤','🥂',''];let sep=pick(['\n\n','\n',' — ']);return `${pick(intros)} ${op}`.trim()+sep+tokens(body)+'\n\n'+end+'\n'+cta+'.'}
+function buildCaption(t,kind){let v=creative[t],op=pick(v.open),body=pick(v.body),end=pick(v.end),cta=state.settings.cta;let intros=['✨','🖤','🥂',''];let sep=pick(['\n\n','\n',' — ']);return `${pick(intros)} ${op}`.trim()+sep+tokens(body)+'\n\n🥂 Bottiglia di Prosecco inclusa e colazione inclusa.\n\n'+end+'\n'+cta+'.'}
 function buildTags(t){let a=[...hashtags[t]],extra=['#CrystalLuxuryApartment','#Capurso','#PugliaDaVivere','#BariProvincia','#VisitPuglia','#SoggiornoRomantico','#EsperienzeInPuglia','#RelaxInPuglia','#PugliaTravel','#SuiteLovers'];let all=[...new Set([...a,...extra])],chosen=[];while(all.length&&chosen.length<rand(3)+6){chosen.push(all.splice(rand(all.length),1)[0])}return chosen.join(' ')}
 function buildScript(headline){let openings=['Dettaglio della porta o ingresso reale','Inquadratura ravvicinata di un dettaglio autentico','Panoramica lenta della stanza','Particolare della vasca, se presente nel video'];let middles=['Movimento morbido verso la zona notte','Cambio inquadratura su un altro dettaglio reale','Breve ripresa degli ambienti con luce naturale'];return `IDEA REEL · 12–18 secondi · Solo riprese originali\n0–3 s: ${pick(openings)}.\n3–9 s: ${pick(middles)}.\n9–14 s: mostra un dettaglio diverso della suite.\n14–18 s: titolo «${headline}» e invito «${state.settings.cta}».\nUsa musica disponibile e autorizzata nel social. La copertina non è un video.`}
 function allPhotos(){return [...basePhotos,...githubPhotos,...userPhotos]}
@@ -69,111 +78,78 @@ function sync(){current.headline=$('headline').value;current.caption=$('caption'
 function loadImg(src){return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src})}
 function wrap(ctx,text,maxWidth,maxLines){let words=text.split(/\s+/),lines=[],line='';for(let w of words){let next=line?line+' '+w:w;if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=w}else line=next}if(line)lines.push(line);if(lines.length>maxLines){lines=lines.slice(0,maxLines);while(ctx.measureText(lines[maxLines-1]+'…').width>maxWidth)lines[maxLines-1]=lines[maxLines-1].slice(0,-1);lines[maxLines-1]+='…'}return lines}
 async function draw(){
-  sync();
-  const ticket=++renderTicket, canvas=$('canvas'), ctx=canvas.getContext('2d');
-  const w=1080, h=current.kind==='post'?1350:1920;
-  canvas.width=w;canvas.height=h;
-  const photo=allPhotos().find(p=>p.id===current.photo)||creativePhotos()[0]||basePhotos[0];
-  let im;
-  try{im=await loadImg(photo.src)}catch(e){toast('Fotografia non disponibile: verifica la libreria');return}
-  if(ticket!==renderTicket)return;
-  const pal=palettes[(current.palette||0)%palettes.length]||palettes[0];
-  const gold=pal.gold,white='#fffaf2',edge=74;
-  const layout=visualLayouts.includes(current.layout)?current.layout:'editorial';
-  const promo=current.theme==='offer'&&offerValid();
-  const headline=(current.headline||'Una notte speciale').trim().slice(0,65);
-  ctx.clearRect(0,0,w,h);
-
-  // Foto originale a pieno formato: niente colonne nere, riquadri o ritagli arbitrari.
-  // Su foto molto panoramiche il crop centrale è inevitabile per una Story 9:16.
-  const scale=Math.max(w/im.width,h/im.height),sw=w/scale,sh=h/scale;
-  const focus={editorial:.5,cinema:.52,corner:.38,minimal:.62,center:.5,spotlight:.47}[layout];
-  const sx=Math.max(0,(im.width-sw)*focus),sy=Math.max(0,(im.height-sh)*.5);
-  ctx.drawImage(im,sx,sy,sw,sh,0,0,w,h);
-
-  function gradient(x,y,ww,hh,stops,horizontal=false){
-    const g=horizontal?ctx.createLinearGradient(x,y,x+ww,y):ctx.createLinearGradient(x,y,x,y+hh);
-    stops.forEach(([p,a])=>g.addColorStop(p,`rgba(8,7,10,${a})`));
-    ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh);
-  }
-  function txt(t,x,y,size,color=white,align='left',font='Arial',weight='normal'){
-    ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.textAlign=align;
-    ctx.textBaseline='alphabetic';ctx.fillText(t,x,y);
-  }
-  function brand(x,y,align='left'){
-    txt('CRYSTAL',x,y,48,gold,align,'Georgia');
-    txt('L U X U R Y   A P A R T M E N T',x,y+34,14,white,align);
-    txt('C A P U R S O',x,y+65,15,gold,align);
-  }
-  function linesFor(t,width,size){
-    ctx.font=`bold ${size}px Georgia`;
-    const words=t.split(/\s+/),lines=[];let line='';
-    for(const word of words){
-      const candidate=line?line+' '+word:word;
-      if(line&&ctx.measureText(candidate).width>width){lines.push(line);line=word}else line=candidate;
-    }
-    if(line)lines.push(line);
-    return lines;
-  }
-  function title(x,y,width,align='left',max=105){
-    let size=max,lines=[];
-    while(size>=52){
-      lines=linesFor(headline,width,size);
-      if(lines.length<=2&&lines.every(l=>{ctx.font=`bold ${size}px Georgia`;return ctx.measureText(l).width<=width}))break;
-      size-=3;
-    }
-    // Se la frase è troppo lunga, ridimensiona anziché tagliare il testo.
-    while(lines.length>3&&size>40){size-=2;lines=linesFor(headline,width,size)}
-    ctx.shadowColor='rgba(0,0,0,.75)';ctx.shadowBlur=22;
-    lines.forEach((line,i)=>txt(line,x,y+i*size*1.16,size,white,align,'Georgia','bold'));
-    ctx.shadowBlur=0;
-    return lines.length*size*1.16;
-  }
-  function button(x,y,width=440,align='left'){
-    const bx=align==='center'?x-width/2:align==='right'?x-width:x;
-    ctx.fillStyle='rgba(10,9,12,.72)';ctx.strokeStyle=gold;ctx.lineWidth=2.5;
-    const r=31,bh=72;
-    ctx.beginPath();ctx.roundRect(bx,y,width,bh,r);ctx.fill();ctx.stroke();
-    txt('PRENOTA ORA',bx+width/2,y+47,26,white,'center','Arial','bold');
-  }
-  function price(x,y,align='left'){
-    if(promo)txt(`${state.settings.price} € / NOTTE`,x,y,49,gold,align,'Georgia','bold');
-  }
-  // Sfuma solo le aree necessarie alla lettura, mantenendo visibile la suite.
-  const top=.22*h,bottom=.61*h;
-  if(layout==='editorial'){
-    gradient(0,0,w,h,[[0,.43],[.14,.06],[.52,0],[.70,.18],[1,.79]]);
-    brand(edge,130);
-    title(edge,h*.77,w-2*edge,'left',108);
-    price(edge,h*.865);button(edge,h-132,420);
-  }else if(layout==='cinema'){
-    gradient(0,0,w,h,[[0,.64],[.18,.04],[.54,0],[.72,.30],[1,.86]]);
-    brand(w/2,137,'center');
-    title(w/2,h*.78,w-2*edge,'center',108);
-    price(w/2,h*.875,'center');button(w/2,h-132,470,'center');
-  }else if(layout==='corner'){
-    gradient(0,0,w,h,[[0,.56],[.16,0],[.55,0],[.73,.40],[1,.86]]);
-    brand(edge,135);
-    title(w-edge,h*.77,w-2*edge,'right',103);
-    price(w-edge,h*.87,'right');button(w-edge,h-132,420,'right');
-  }else if(layout==='minimal'){
-    gradient(0,0,w,h,[[0,.45],[.16,0],[.55,0],[.75,.42],[1,.87]]);
-    brand(w-edge,132,'right');
-    title(edge,h*.78,w-2*edge,'left',112);
-    price(edge,h*.875);button(edge,h-132,400);
-  }else if(layout==='center'){
-    gradient(0,0,w,h,[[0,.53],[.17,.02],[.48,0],[.69,.28],[1,.83]]);
-    brand(edge,132);
-    title(w/2,h*.77,w-2*edge,'center',111);
-    price(w/2,h*.875,'center');button(w/2,h-132,450,'center');
-  }else{
-    gradient(0,0,w,h,[[0,.45],[.20,0],[.58,0],[.76,.42],[1,.89]]);
-    brand(edge,132);
-    ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(edge,h*.70);ctx.lineTo(edge+110,h*.70);ctx.stroke();
-    title(edge,h*.79,w-2*edge,'left',103);
-    price(edge,h*.88);button(edge,h-132,420);
-  }
-  lastBlob=null;
+ sync();const ticket=++renderTicket,canvas=$('canvas'),ctx=canvas.getContext('2d');
+ const W=1080,H=current.kind==='post'?1350:1920;canvas.width=W;canvas.height=H;
+ const photo=allPhotos().find(p=>p.id===current.photo)||creativePhotos()[0]||basePhotos[0];let im;
+ try{im=await loadImg(photo.src)}catch{toast('Fotografia non disponibile: verifica la libreria');return}
+ if(ticket!==renderTicket)return;
+ const pal=palettes[(current.palette||0)%palettes.length]||palettes[0];
+ const gold=pal.gold,white='#f9f5ee',scale=H/1920;
+ const layout=visualLayouts.includes(current.layout)?current.layout:'left-classic';
+ const onLeft=layout.startsWith('left');const panelW=layout.includes('modern')?520:layout.includes('romance')?490:500;
+ const panelX=onLeft?0:W-panelW,photoX=onLeft?panelW:0,photoW=W-panelW;
+ const headline=(current.headline||'Una notte speciale').trim();
+ const promo=current.theme==='offer'&&offerValid();
+ const fs=n=>Math.round(n*Math.max(.77,scale));
+ const Y=n=>n*scale;
+ const align=onLeft?'left':'right',pad=onLeft?56:W-56;
+ ctx.fillStyle='#111015';ctx.fillRect(0,0,W,H);
+ // Foto sempre protagonista: 52–55% della larghezza, senza oscurarla.
+ const ratio=Math.max(photoW/im.width,H/im.height),sw=photoW/ratio,sh=H/ratio;
+ const focus=layout.includes('modern')?.63:layout.includes('romance')?.43:.5;
+ const sx=Math.max(0,(im.width-sw)*focus),sy=Math.max(0,(im.height-sh)*.5);
+ ctx.drawImage(im,sx,sy,sw,sh,photoX,0,photoW,H);
+ // Pannello editoriale opaco ispirato alla locandina di riferimento.
+ const grad=ctx.createLinearGradient(panelX,0,panelX+panelW,H);
+ grad.addColorStop(0,'#15141a');grad.addColorStop(.6,'#0e0e13');grad.addColorStop(1,'#19151a');
+ ctx.fillStyle=grad;ctx.fillRect(panelX,0,panelW,H);
+ // Sottile separatore oro e ombra sul bordo della fotografia.
+ ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(onLeft?panelW:photoW-9,0,9,H);
+ ctx.fillStyle=gold;ctx.fillRect(onLeft?panelW-2:photoW,0,2,H);
+ function txt(t,x,y,size,color=white,font='Arial',weight='normal',a=align){
+  ctx.fillStyle=color;ctx.textAlign=a;ctx.textBaseline='alphabetic';ctx.font=`${weight} ${size}px ${font}`;ctx.fillText(t,x,y);
+ }
+ function rule(y,len=145){ctx.fillStyle=gold;ctx.fillRect(onLeft?pad:pad-len,Y(y),len,2)}
+ function multiline(t,maxWidth,size,maxLines){
+  ctx.font=`bold ${size}px Georgia`;const words=t.split(/\s+/),lines=[];let line='';
+  for(const word of words){let next=line?line+' '+word:word;
+   if(line&&ctx.measureText(next).width>maxWidth){lines.push(line);line=word}else line=next;
+  }if(line)lines.push(line);
+  return lines.length<=maxLines?lines:null;
+ }
+ const titleMax=panelW-112;
+ let titleSize=fs(layout.includes('modern')?80:86),lines;
+ while(titleSize>=fs(43)){lines=multiline(headline,titleMax,titleSize,4);if(lines)break;titleSize-=2}
+ lines=lines||multiline(headline,titleMax,fs(42),10)||[headline];
+ const titleY=layout.includes('modern')?205:190;
+ rule(73,125);
+ txt('CRYSTAL',pad,Y(126),fs(33),gold,'Georgia');
+ txt('L U X U R Y  A P A R T M E N T',pad,Y(151),fs(12),white);
+ let lineY=Y(titleY+65);
+ for(const line of lines){txt(line,pad,lineY,titleSize,white,'Georgia','bold');lineY+=titleSize*1.14}
+ rule(Math.max(470,(lineY/scale)+38),135);
+ const descriptor=pick(['SUITE ESCLUSIVA','UN SOGGIORNO SPECIALE','IL TUO MOMENTO','ESPERIENZA DI COPPIA','RELAX E PRIVACY']);
+ const benefitY=Math.max(Y(565),lineY+Y(100));
+ txt(descriptor,pad,benefitY,fs(24),gold,'Arial','bold');
+ txt('A CAPURSO · BARI',pad,benefitY+Y(36),fs(20),white);
+ const detailY=Math.max(Y(745),benefitY+Y(115));
+ const details=[['✦','BOTTIGLIA DI','PROSECCO INCLUSA'],['✦','COLAZIONE','INCLUSA'],['✦','UN MOMENTO','DA RICORDARE']];
+ details.forEach(([symbol,l1,l2],i)=>{
+  const yy=detailY+i*Y(151);
+  txt(symbol,pad,yy,fs(30),gold,'Georgia');
+  txt(l1,pad,yy+Y(40),fs(24),white,'Arial','bold');
+  txt(l2,pad,yy+Y(74),fs(23),white);
+ });
+ const footer=H-Y(245);
+ rule(footer/scale-55,140);
+ if(promo)txt(`${state.settings.price} € / NOTTE`,pad,footer-Y(13),fs(33),gold,'Georgia','bold');
+ const boxW=panelW-100,boxX=onLeft?50:W-panelW+50,boxY=H-Y(202),boxH=Y(112);
+ ctx.fillStyle='rgba(9,9,12,.75)';ctx.strokeStyle=gold;ctx.lineWidth=2;
+ ctx.fillRect(boxX,boxY,boxW,boxH);ctx.strokeRect(boxX,boxY,boxW,boxH);
+ txt('SCRIVICI SU WHATSAPP',boxX+boxW/2,boxY+Y(43),fs(20),white,'Arial','bold','center');
+ txt('PER PRENOTARE',boxX+boxW/2,boxY+Y(81),fs(24),gold,'Arial','bold','center');
+ txt('CRYSTAL LUXURY APARTMENT · CAPURSO',boxX+boxW/2,H-Y(45),fs(12),white,'Arial','normal','center');
+ lastBlob=null;
 }
 function canvasBlob(){return new Promise(resolve=>$('canvas').toBlob(resolve,'image/png'))}async function saveImage(share=false){sync();await draw();let blob=await canvasBlob();if(!blob){toast('Esportazione non riuscita');return}let name=`crystal_${current.kind}_${new Date().toISOString().slice(0,10)}.png`;if(share&&navigator.share&&navigator.canShare){let file=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Crystal Luxury Apartment',text:current.caption+'\n'+current.hashtags});return}catch(e){if(e.name==='AbortError')return}}}let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);toast(share?'Immagine scaricata: condividila dal tuo iPhone':'PNG pronto per il download')}
 function fillPhotos(){let s=$('photoSelect'),old=s.value;s.innerHTML='';allPhotos().forEach(p=>{let o=document.createElement('option');o.value=p.id;o.textContent=p.name;s.appendChild(o)});s.value=allPhotos().some(p=>p.id===old)?old:choosePhoto().id}
