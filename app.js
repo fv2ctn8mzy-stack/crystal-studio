@@ -11,7 +11,7 @@ const hashtags={relax:['#CrystalLuxuryApartment','#Capurso','#RelaxPuglia','#Wee
 function offerValid(){let s=state.settings;let d=new Date(),today=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');return !!(s.active&&s.price>0&&s.end&&s.end>=today)}function themeToday(){let t=weekThemes[(new Date().getDay()+6)%7];return t==='offer'&&!offerValid()?'romance':t}
 let photoBag=[];
 function choosePhoto(){
-  const photos=allPhotos();if(!photos.length)return basePhotos[0];
+  const photos=creativePhotos();if(!photos.length)return basePhotos[0];
   const ids=new Set(photos.map(p=>p.id));
   photoBag=photoBag.filter(id=>ids.has(id));
   if(!photoBag.length){
@@ -33,12 +33,14 @@ romance:{hooks:['Solo voi due','Il tempo insieme conta','Una sorpresa da condivi
 weekend:{hooks:['Weekend, ci sei?','Il piano perfetto per due','Il tuo prossimo weekend','Cambia programma','Una fuga vicino Bari','Questo weekend scegli te','Un weekend da vivere','La pausa che aspettavi'],open:['Il weekend si avvicina: hai già un programma?','Il venerdì porta sempre voglia di cambiare aria.','Non tutti i weekend devono essere uguali.'],body:['Scopri Crystal Luxury Apartment a Capurso, in provincia di Bari.','Una proposta per chi desidera una pausa diversa.','Un soggiorno da organizzare con chi vuoi.'],end:['Salva questo spunto per il prossimo weekend.','Con chi partiresti?','Scrivici per conoscere le date disponibili.']},
 offer:{hooks:['La tua prossima pausa','Una proposta Crystal','Un soggiorno speciale','Regalati una notte diversa','La tua occasione di relax'],open:['Una proposta da segnare in agenda.','Hai voglia di concederti una pausa?','Scopri la promozione attualmente confermata.'],body:['La promozione attiva è di {price} € a notte con {included}, fino al {end}, salvo disponibilità e condizioni.','Fino al {end}: soggiorno a {price} € a notte con {included}, secondo disponibilità.'],end:['Contattaci per verificare le date.','Chiedici disponibilità e condizioni.']}
 };
-const visualLayouts=['split','curve','diagonal','arch','cinema','ribbon','corner','offset','editorial','frame'];
+const visualLayouts=['editorial','cinema','corner','minimal','center','spotlight'];
 const palettes=[{gold:'#d8b77e',white:'#fff9ef',dark:'#0d0b0a'},{gold:'#e2c18f',white:'#ffffff',dark:'#15100d'},{gold:'#bfa57d',white:'#f8f0e5',dark:'#17120f'}];
 function buildCaption(t,kind){let v=creative[t],op=pick(v.open),body=pick(v.body),end=pick(v.end),cta=state.settings.cta;let intros=['✨','🖤','🥂',''];let sep=pick(['\n\n','\n',' — ']);return `${pick(intros)} ${op}`.trim()+sep+tokens(body)+'\n\n'+end+'\n'+cta+'.'}
 function buildTags(t){let a=[...hashtags[t]],extra=['#CrystalLuxuryApartment','#Capurso','#PugliaDaVivere','#BariProvincia','#VisitPuglia','#SoggiornoRomantico','#EsperienzeInPuglia','#RelaxInPuglia','#PugliaTravel','#SuiteLovers'];let all=[...new Set([...a,...extra])],chosen=[];while(all.length&&chosen.length<rand(3)+6){chosen.push(all.splice(rand(all.length),1)[0])}return chosen.join(' ')}
 function buildScript(headline){let openings=['Dettaglio della porta o ingresso reale','Inquadratura ravvicinata di un dettaglio autentico','Panoramica lenta della stanza','Particolare della vasca, se presente nel video'];let middles=['Movimento morbido verso la zona notte','Cambio inquadratura su un altro dettaglio reale','Breve ripresa degli ambienti con luce naturale'];return `IDEA REEL · 12–18 secondi · Solo riprese originali\n0–3 s: ${pick(openings)}.\n3–9 s: ${pick(middles)}.\n9–14 s: mostra un dettaglio diverso della suite.\n14–18 s: titolo «${headline}» e invito «${state.settings.cta}».\nUsa musica disponibile e autorizzata nel social. La copertina non è un video.`}
 function allPhotos(){return [...basePhotos,...githubPhotos,...userPhotos]}
+// Le foto autentiche caricate hanno priorità rispetto alle vecchie grafiche promozionali.
+function creativePhotos(){return (githubPhotos.length||userPhotos.length)?[...githubPhotos,...userPhotos]:basePhotos}
 const githubFolder='https://api.github.com/repos/fv2ctn8mzy-stack/crystal-studio/contents/assets?ref=main';
 const photoExtensions=/\.(png|jpe?g|webp|gif|avif)$/i;
 async function refreshGithubPhotos(notify=false){
@@ -67,41 +69,111 @@ function sync(){current.headline=$('headline').value;current.caption=$('caption'
 function loadImg(src){return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src})}
 function wrap(ctx,text,maxWidth,maxLines){let words=text.split(/\s+/),lines=[],line='';for(let w of words){let next=line?line+' '+w:w;if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=w}else line=next}if(line)lines.push(line);if(lines.length>maxLines){lines=lines.slice(0,maxLines);while(ctx.measureText(lines[maxLines-1]+'…').width>maxWidth)lines[maxLines-1]=lines[maxLines-1].slice(0,-1);lines[maxLines-1]+='…'}return lines}
 async function draw(){
- sync();const ticket=++renderTicket,canvas=$('canvas'),ctx=canvas.getContext('2d');
- const w=1080,h=current.kind==='post'?1350:1920;canvas.width=w;canvas.height=h;
- const photo=allPhotos().find(p=>p.id===current.photo)||basePhotos[0];let im;
- try{im=await loadImg(photo.src)}catch(e){toast('Fotografia non disponibile: verifica la libreria');return}
- if(ticket!==renderTicket)return;
- const layout=visualLayouts.includes(current.layout)?current.layout:'split';
- const pal=palettes[current.palette%palettes.length]||palettes[0],gold=pal.gold,white=pal.white;
- const promo=current.theme==='offer'&&offerValid();
- const headline=(current.headline||'Una notte speciale').trim().slice(0,72);
- const cover=(x,y,ww,hh)=>{const sc=Math.max(ww/im.width,hh/im.height),sw=ww/sc,sh=hh/sc;ctx.drawImage(im,Math.max(0,(im.width-sw)/2),Math.max(0,(im.height-sh)/2),sw,sh,x,y,ww,hh)};
- const rect=(x,y,ww,hh,alpha=.97)=>{ctx.fillStyle=`rgba(8,7,9,${alpha})`;ctx.fillRect(x,y,ww,hh)};
- const line=(x,y,len=140)=>{ctx.fillStyle=gold;ctx.fillRect(x,y,len,3)};
- const txt=(t,x,y,size,color=white,align='left',family='Georgia',weight='normal')=>{ctx.fillStyle=color;ctx.font=`${weight} ${size}px ${family}`;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.fillText(t,x,y)};
- const logo=(x,y,align='left')=>{txt('CRYSTAL',x,y,49,gold,align);txt('L U X U R Y  A P A R T M E N T',x,y+38,17,white,align,'Arial');txt('C A P U R S O',x,y+72,17,gold,align,'Arial')};
- const title=(x,y,width,align='left',maxSize=106)=>{let sz=maxSize,ls=[];for(;sz>=49;sz-=3){ctx.font=`bold ${sz}px Georgia`;ls=wrap(ctx,headline,width,3);if(ls.every(v=>!v.endsWith('…'))&&ls.length<=3)break}ctx.shadowColor='rgba(0,0,0,.65)';ctx.shadowBlur=9;ls.forEach((v,i)=>txt(v,x,y+i*sz*1.13,sz,white,align,'Georgia','bold'));ctx.shadowBlur=0;return ls.length*sz*1.13};
- const price=(x,y,align='left')=>{if(promo)txt(String(state.settings.price).replace(/[^0-9,.]/g,'')+' € / NOTTE',x,y,47,gold,align,'Georgia','bold')};
- const cta=(x,y,width=390)=>{ctx.fillStyle='#100d0d';ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(x,y,width,85,38);ctx.fill();ctx.stroke();txt('PRENOTA ORA',x+width/2,y+55,30,white,'center','Arial','bold')};
- const footer=(x,y)=>{line(x,y,95);txt('CRYSTAL  ·  CAPURSO',x,y+46,23,gold,'left','Arial')};
- const clipPath=(points)=>{ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip()};
- const gradient=(x,y,ww,hh,from=0,to=.86)=>{const g=ctx.createLinearGradient(x,y,x,y+hh);g.addColorStop(0,`rgba(5,4,6,${from})`);g.addColorStop(1,`rgba(5,4,6,${to})`);ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh)};
- rect(0,0,w,h,1);
- const designs={
- split:()=>{cover(385,0,695,h);rect(0,0,450,h);line(449,0,0);ctx.fillStyle=gold;ctx.fillRect(448,0,3,h);logo(65,130);title(65,h*.42,385,'left',91);price(65,h*.67);cta(60,h-240,390);footer(65,h-115)},
- curve:()=>{cover(0,0,w,h);ctx.fillStyle='#090809';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(570,0);ctx.bezierCurveTo(390,h*.35,530,h*.60,330,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.stroke();logo(65,145);title(65,h*.42,490,'left',98);price(65,h*.69);cta(65,h-235,385)},
- diagonal:()=>{cover(0,0,w,h);ctx.save();clipPath([[0,0],[610,0],[340,h],[0,h]]);rect(0,0,w,h);ctx.restore();ctx.strokeStyle=gold;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(610,0);ctx.lineTo(340,h);ctx.stroke();logo(65,145);title(65,h*.44,525,'left',98);price(65,h*.70);cta(65,h-235,390)},
- arch:()=>{cover(0,0,w,h);rect(0,0,490,h,.95);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(490,0);ctx.bezierCurveTo(670,h*.36,260,h*.64,490,h);ctx.stroke();logo(60,140);title(60,h*.43,465,'left',95);price(60,h*.7);cta(60,h-235,390)},
- cinema:()=>{cover(0,0,w,h);gradient(0,0,w,440,.8,0);gradient(0,h*.46,w,h*.54,0,.98);logo(70,140);title(70,h*.72,920,'left',116);price(70,h*.85);cta(70,h-190,440)},
- ribbon:()=>{cover(0,0,w,h);rect(0,0,390,h,.94);ctx.fillStyle='rgba(9,7,9,.88)';ctx.fillRect(390,h*.35,690,470);line(390,h*.35,690);logo(55,135);title(425,h*.47,610,'left',96);price(425,h*.63);cta(420,h-220,455);footer(55,h-120)},
- corner:()=>{cover(0,0,w,h);ctx.save();clipPath([[0,0],[770,0],[420,720],[0,720]]);rect(0,0,w,h);ctx.restore();ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(770,0);ctx.lineTo(420,720);ctx.stroke();logo(65,130);gradient(0,h*.54,w,h*.46,0,.96);title(70,h*.73,900,'left',111);price(70,h*.86);cta(70,h-170,420)},
- offset:()=>{cover(0,0,w,h);rect(0,0,w,270,.94);rect(0,h*.66,w,h*.34,.92);logo(75,130);line(75,h*.68,170);title(75,h*.76,900,'left',111);price(75,h*.89);cta(75,h-155,430)},
- editorial:()=>{cover(390,0,690,h);rect(0,0,390,h);logo(45,125);ctx.save();ctx.translate(315,h*.63);ctx.rotate(-Math.PI/2);txt('CRYSTAL LUXURY APARTMENT',0,0,27,gold,'left','Georgia');ctx.restore();gradient(390,h*.46,690,h*.54,0,.89);title(430,h*.69,610,'left',90);price(430,h*.85);cta(425,h-165,520)},
- frame:()=>{cover(0,0,w,h);gradient(0,0,w,430,.75,0);gradient(0,h*.42,w,h*.58,0,.94);ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.strokeRect(45,45,w-90,h-90);logo(w/2,145,'center');title(w/2,h*.73,880,'center',104);price(w/2,h*.86,'center');cta(310,h-185,460)}
- };
- designs[layout]();
- lastBlob=null;
+  sync();
+  const ticket=++renderTicket, canvas=$('canvas'), ctx=canvas.getContext('2d');
+  const w=1080, h=current.kind==='post'?1350:1920;
+  canvas.width=w;canvas.height=h;
+  const photo=allPhotos().find(p=>p.id===current.photo)||creativePhotos()[0]||basePhotos[0];
+  let im;
+  try{im=await loadImg(photo.src)}catch(e){toast('Fotografia non disponibile: verifica la libreria');return}
+  if(ticket!==renderTicket)return;
+  const pal=palettes[(current.palette||0)%palettes.length]||palettes[0];
+  const gold=pal.gold,white='#fffaf2',edge=74;
+  const layout=visualLayouts.includes(current.layout)?current.layout:'editorial';
+  const promo=current.theme==='offer'&&offerValid();
+  const headline=(current.headline||'Una notte speciale').trim().slice(0,65);
+  ctx.clearRect(0,0,w,h);
+
+  // Foto originale a pieno formato: niente colonne nere, riquadri o ritagli arbitrari.
+  // Su foto molto panoramiche il crop centrale è inevitabile per una Story 9:16.
+  const scale=Math.max(w/im.width,h/im.height),sw=w/scale,sh=h/scale;
+  const focus={editorial:.5,cinema:.52,corner:.38,minimal:.62,center:.5,spotlight:.47}[layout];
+  const sx=Math.max(0,(im.width-sw)*focus),sy=Math.max(0,(im.height-sh)*.5);
+  ctx.drawImage(im,sx,sy,sw,sh,0,0,w,h);
+
+  function gradient(x,y,ww,hh,stops,horizontal=false){
+    const g=horizontal?ctx.createLinearGradient(x,y,x+ww,y):ctx.createLinearGradient(x,y,x,y+hh);
+    stops.forEach(([p,a])=>g.addColorStop(p,`rgba(8,7,10,${a})`));
+    ctx.fillStyle=g;ctx.fillRect(x,y,ww,hh);
+  }
+  function txt(t,x,y,size,color=white,align='left',font='Arial',weight='normal'){
+    ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.textAlign=align;
+    ctx.textBaseline='alphabetic';ctx.fillText(t,x,y);
+  }
+  function brand(x,y,align='left'){
+    txt('CRYSTAL',x,y,48,gold,align,'Georgia');
+    txt('L U X U R Y   A P A R T M E N T',x,y+34,14,white,align);
+    txt('C A P U R S O',x,y+65,15,gold,align);
+  }
+  function linesFor(t,width,size){
+    ctx.font=`bold ${size}px Georgia`;
+    const words=t.split(/\s+/),lines=[];let line='';
+    for(const word of words){
+      const candidate=line?line+' '+word:word;
+      if(line&&ctx.measureText(candidate).width>width){lines.push(line);line=word}else line=candidate;
+    }
+    if(line)lines.push(line);
+    return lines;
+  }
+  function title(x,y,width,align='left',max=105){
+    let size=max,lines=[];
+    while(size>=52){
+      lines=linesFor(headline,width,size);
+      if(lines.length<=2&&lines.every(l=>{ctx.font=`bold ${size}px Georgia`;return ctx.measureText(l).width<=width}))break;
+      size-=3;
+    }
+    // Se la frase è troppo lunga, ridimensiona anziché tagliare il testo.
+    while(lines.length>3&&size>40){size-=2;lines=linesFor(headline,width,size)}
+    ctx.shadowColor='rgba(0,0,0,.75)';ctx.shadowBlur=22;
+    lines.forEach((line,i)=>txt(line,x,y+i*size*1.16,size,white,align,'Georgia','bold'));
+    ctx.shadowBlur=0;
+    return lines.length*size*1.16;
+  }
+  function button(x,y,width=440,align='left'){
+    const bx=align==='center'?x-width/2:align==='right'?x-width:x;
+    ctx.fillStyle='rgba(10,9,12,.72)';ctx.strokeStyle=gold;ctx.lineWidth=2.5;
+    const r=31,bh=72;
+    ctx.beginPath();ctx.roundRect(bx,y,width,bh,r);ctx.fill();ctx.stroke();
+    txt('PRENOTA ORA',bx+width/2,y+47,26,white,'center','Arial','bold');
+  }
+  function price(x,y,align='left'){
+    if(promo)txt(`${state.settings.price} € / NOTTE`,x,y,49,gold,align,'Georgia','bold');
+  }
+  // Sfuma solo le aree necessarie alla lettura, mantenendo visibile la suite.
+  const top=.22*h,bottom=.61*h;
+  if(layout==='editorial'){
+    gradient(0,0,w,h,[[0,.43],[.14,.06],[.52,0],[.70,.18],[1,.79]]);
+    brand(edge,130);
+    title(edge,h*.77,w-2*edge,'left',108);
+    price(edge,h*.865);button(edge,h-132,420);
+  }else if(layout==='cinema'){
+    gradient(0,0,w,h,[[0,.64],[.18,.04],[.54,0],[.72,.30],[1,.86]]);
+    brand(w/2,137,'center');
+    title(w/2,h*.78,w-2*edge,'center',108);
+    price(w/2,h*.875,'center');button(w/2,h-132,470,'center');
+  }else if(layout==='corner'){
+    gradient(0,0,w,h,[[0,.56],[.16,0],[.55,0],[.73,.40],[1,.86]]);
+    brand(edge,135);
+    title(w-edge,h*.77,w-2*edge,'right',103);
+    price(w-edge,h*.87,'right');button(w-edge,h-132,420,'right');
+  }else if(layout==='minimal'){
+    gradient(0,0,w,h,[[0,.45],[.16,0],[.55,0],[.75,.42],[1,.87]]);
+    brand(w-edge,132,'right');
+    title(edge,h*.78,w-2*edge,'left',112);
+    price(edge,h*.875);button(edge,h-132,400);
+  }else if(layout==='center'){
+    gradient(0,0,w,h,[[0,.53],[.17,.02],[.48,0],[.69,.28],[1,.83]]);
+    brand(edge,132);
+    title(w/2,h*.77,w-2*edge,'center',111);
+    price(w/2,h*.875,'center');button(w/2,h-132,450,'center');
+  }else{
+    gradient(0,0,w,h,[[0,.45],[.20,0],[.58,0],[.76,.42],[1,.89]]);
+    brand(edge,132);
+    ctx.strokeStyle=gold;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(edge,h*.70);ctx.lineTo(edge+110,h*.70);ctx.stroke();
+    title(edge,h*.79,w-2*edge,'left',103);
+    price(edge,h*.88);button(edge,h-132,420);
+  }
+  lastBlob=null;
 }
 function canvasBlob(){return new Promise(resolve=>$('canvas').toBlob(resolve,'image/png'))}async function saveImage(share=false){sync();await draw();let blob=await canvasBlob();if(!blob){toast('Esportazione non riuscita');return}let name=`crystal_${current.kind}_${new Date().toISOString().slice(0,10)}.png`;if(share&&navigator.share&&navigator.canShare){let file=new File([blob],name,{type:'image/png'});if(navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Crystal Luxury Apartment',text:current.caption+'\n'+current.hashtags});return}catch(e){if(e.name==='AbortError')return}}}let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);toast(share?'Immagine scaricata: condividila dal tuo iPhone':'PNG pronto per il download')}
 function fillPhotos(){let s=$('photoSelect'),old=s.value;s.innerHTML='';allPhotos().forEach(p=>{let o=document.createElement('option');o.value=p.id;o.textContent=p.name;s.appendChild(o)});s.value=allPhotos().some(p=>p.id===old)?old:choosePhoto().id}
